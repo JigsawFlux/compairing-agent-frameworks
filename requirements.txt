@@ -1,0 +1,6 @@
+google-genai
+langgraph
+langchain-google-genai
+crewai
+duckduckgo-search
+python-dotenv
