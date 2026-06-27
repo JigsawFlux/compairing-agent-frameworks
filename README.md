@@ -1,29 +1,27 @@
-# Comparing Agent Frameworks using Gemini
+# Comparing Agent Frameworks using Claude
 
-This project provides a clean, side-by-side comparison of three major approaches for building multi-agent systems with **Google Gemini**:
+This project provides a clean, side-by-side comparison of three major approaches for building multi-agent systems with **Anthropic Claude**.
 
-1. **Native Gemini SDK (`google-genai`)**: Pure Python orchestration using the official Google SDK.
-2. **LangGraph (`langgraph`)**: Stateful, cyclic graph orchestration from the LangChain ecosystem.
-3. **CrewAI (`crewai`)**: High-level, role-playing, and goal-directed agent orchestration.
+Each framework is the natural implementation home for a family of agentic patterns — making this comparison the foundation for a follow-up post on single-agent and multi-agent pattern architectures.
+
+| Framework | Paradigm | Agentic Patterns It Enables |
+| :--- | :--- | :--- |
+| **LangGraph** | Stateful graph | ReAct, Plan-and-Execute, ReWOO, Reflexion, DAG topologies |
+| **CrewAI** | Declarative roles | Hierarchical Agent pattern |
+| **AutoGen** | Conversation-based | Peer-to-peer Network, Consensus/Joint, Human-in-the-loop |
 
 ---
 
 ## 📊 Overview of the Architectures
 
-Each framework is implemented to solve the exact same multi-agent task:
-- **Research Agent**: Uses a Web Search tool (DuckDuckGo) to gather facts about a given topic and compiles structured research notes.
-- **Writer Agent**: Consumes the research notes and drafts a comprehensive technical report in Markdown.
+Each framework implements the same two-agent task:
+- **Research Agent**: Uses a DuckDuckGo web search tool to gather facts and compile structured notes.
+- **Writer Agent**: Consumes the research notes and drafts a technical report in Markdown.
 
 ```mermaid
 graph TD
     User([User Request]) --> Router{Select Framework}
-    
-    subgraph Native ["Native SDK (Procedural Control)"]
-        N1[Client Init] --> N2[Research Agent + Search Tool]
-        N2 -->|Structured Notes| N3[Writer Agent]
-        N3 --> N_Out[Final Markdown Report]
-    end
-    
+
     subgraph LG ["LangGraph (Stateful Graph)"]
         L1[State Init] --> L_Node[Researcher Node]
         L_Node --> L_Cond{Has Tool Calls?}
@@ -39,74 +37,104 @@ graph TD
         C_Tasks --> C_Crew[Crew Instantiation]
         C_Crew -->|Sequential Process| C_Out[Final Markdown Report]
     end
-    
-    Router -->|--framework native| Native
+
+    subgraph AG ["AutoGen (Conversation-Based)"]
+        A_Proxy[UserProxyAgent] -->|initiate_chat| A_Res[Researcher AssistantAgent]
+        A_Res -->|tool call| A_Tool[web_search execution]
+        A_Tool --> A_Res
+        A_Res -->|notes + TERMINATE| A_Proxy2[UserProxyAgent2]
+        A_Proxy2 -->|initiate_chat| A_Write[Writer AssistantAgent]
+        A_Write --> A_Out[Final Markdown Report]
+    end
+
     Router -->|--framework langgraph| LG
     Router -->|--framework crewai| Crew
+    Router -->|--framework autogen| AG
 ```
 
 ---
 
 ## ⚡ Framework Comparison Matrix
 
-| Feature | Native SDK (`google-genai`) | LangGraph (`langgraph`) | CrewAI (`crewai`) |
+| Feature | LangGraph | CrewAI | AutoGen |
 | :--- | :--- | :--- | :--- |
-| **Control Flow** | Imperative / Standard Python (`if/else`, loops, functions) | Declarative Graphs (Nodes, Edges, State Transitions) | Declarative Sequential / Hierarchical Process (Task pipelines) |
-| **State Management** | Standard python variables / structures | Strongly-typed central state schema (State dictionary/Message list) | Implicit task context passing |
-| **Cyclic Loops** | Manual loop creation | Native Support (defined by edges looping back to nodes) | Handled implicitly via Agent thought loops |
-| **Developer Overhead** | Extremely Low (pure Python, minimal imports) | Medium-High (requires understanding Graphs, Channels, Reducers) | Medium (requires defining Agents, Goals, Backstory, and Tasks) |
-| **Customizability** | Maximum (complete control over execution details) | Maximum (fine-grained control over execution graph and state) | Moderate (constrained to the Crew-Task abstraction model) |
-| **Best Used For** | Linear workflows, simple agent pipelines, low-latency applications | Complex pipelines, cyclic state-machines, human-in-the-loop workflows | Quick prototype of collaborative team roles |
+| **Control Flow** | Declarative graph (nodes, edges, state transitions) | Declarative sequential / hierarchical task pipeline | Conversation-based (agents exchange messages) |
+| **State Management** | Strongly-typed central state schema (`TypedDict` + reducers) | Implicit task context passing between agents | Shared conversation history (message list) |
+| **Cyclic Loops** | Native (edges looping back to nodes) | Implicit via agent thought loops | Native via multi-turn `initiate_chat` |
+| **Developer Overhead** | Medium-High — requires understanding graphs, channels, reducers | Medium — requires defining agents, goals, backstory, tasks | Medium — requires understanding agent roles, proxy pattern, termination logic |
+| **Customizability** | Maximum — fine-grained control over graph execution and state | Moderate — constrained to Crew-Task abstraction | High — flexible conversation patterns, custom reply functions |
+| **Best Used For** | Single-agent patterns (ReAct, Reflexion), DAG pipelines, human-in-the-loop | Role-based team simulations, hierarchical agent topologies | Multi-agent collaboration, peer-to-peer patterns, consensus |
 
 ---
 
 ## 🛠️ Setup Instructions
 
 ### 1. Prerequisite
-Ensure you have **Python 3.10+** (Python 3.11 was installed during workspace setup) and **Homebrew**.
+Python 3.10+. Clone the repo and create a virtual environment:
+```bash
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+```
 
 ### 2. Configure Environment Variables
-Copy the `.env.example` file to `.env`:
 ```bash
 cp .env.example .env
 ```
-Open `.env` and add your **Gemini API Key**:
+Open `.env` and add your Anthropic API key:
 ```env
-GEMINI_API_KEY=AIzaSy...
+ANTHROPIC_API_KEY=sk-ant-...
+CLAUDE_MODEL=claude-sonnet-4-6
 ```
 
 ---
 
-## 🚀 How to Run the Comparison
-
-Activate the virtual environment:
-```bash
-source .venv/bin/activate
-```
+## 🚀 How to Run
 
 ### Run a Specific Framework
-To run a single framework (e.g., LangGraph) researching solid-state batteries:
 ```bash
 python run.py --framework langgraph --topic "solid-state batteries"
+python run.py --framework crewai --topic "quantum computing"
+python run.py --framework autogen --topic "nuclear fusion"
 ```
 
-### Run All Frameworks and Compare Telemetry
-To run all three implementations sequentially, log their outputs, and view a comparison table of execution speeds and output sizes:
+### Run All Three and Compare Telemetry
 ```bash
 python run.py --framework all --topic "solid-state batteries"
 ```
 
-After execution, you will see output markdown files in this directory:
-- `report_native.md` & `notes_native.md`
-- `report_langgraph.md` & `notes_langgraph.md`
-- `report_crewai.md` & `notes_crewai.md`
+This runs all three sequentially and prints a comparison table of execution time and output size.
+Output files written to the project root:
+- `notes_langgraph.md` & `report_langgraph.md`
+- `notes_crewai.md` & `report_crewai.md`
+- `notes_autogen.md` & `report_autogen.md`
 
 ---
 
 ## 📁 Code Structure
 
-- [shared/tools.py](file:///Users/sureshthomas/source/comparing-agent-frameworks/shared/tools.py) - Centralized DuckDuckGo Web Search tool with automatic mock data fallback.
-- [native_agent/agent.py](file:///Users/sureshthomas/source/comparing-agent-frameworks/native_agent/agent.py) - Procedural multi-agent pipeline using the official Google Gen AI SDK.
-- [langgraph_agent/agent.py](file:///Users/sureshthomas/source/comparing-agent-frameworks/langgraph_agent/agent.py) - StateGraph implementation featuring cyclic tool execution.
-- [crewai_agent/agent.py](file:///Users/sureshthomas/source/comparing-agent-frameworks/crewai_agent/agent.py) - Declarative role-playing setup using CrewAI's Agent/Task structure.
-- [run.py](file:///Users/sureshthomas/source/comparing-agent-frameworks/run.py) - Command Line orchestrator for running and comparing results.
+- [`shared/tools.py`](shared/tools.py) — DuckDuckGo `web_search()` with a local mock fallback for offline use.
+- [`langgraph_agent/agent.py`](langgraph_agent/agent.py) — `StateGraph` with cyclic tool execution and `ChatAnthropic`.
+- [`crewai_agent/agent.py`](crewai_agent/agent.py) — Declarative `Agent/Task/Crew` with `Process.sequential`.
+- [`autogen_agent/agent.py`](autogen_agent/agent.py) — Two-phase `AssistantAgent` + `UserProxyAgent` conversation pattern.
+- [`run.py`](run.py) — CLI orchestrator: runs frameworks, writes output files, prints telemetry table.
+
+---
+
+## 🗺️ What's Next
+
+This comparison is the foundation for a follow-up post that implements and compares **agentic patterns** directly:
+
+**Single-Agent Patterns**
+- **ReAct** — Reason + Act loop (tool calls interleaved with reasoning)
+- **Plan-and-Execute** — Separate planning phase from execution phase
+- **ReWOO** — Reason Without Observation (plan all tool calls upfront)
+- **Reflexion** — Self-critique and iterative self-improvement
+
+**Multi-Agent Topologies**
+- **Hierarchical** — Orchestrator delegates to specialised sub-agents
+- **Acyclic / DAG** — Directed pipeline with no feedback loops
+- **Network (Peer-to-peer)** — Agents communicate laterally without a central manager
+- **Consensus / Joint** — Multiple agents debate and converge on a shared answer
+
+**Common Tasks Demonstrated**: external API calls, database access, human-in-the-loop approval.
