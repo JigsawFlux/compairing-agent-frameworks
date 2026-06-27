@@ -3,5 +3,6 @@ langchain-core
 langgraph
 crewai
 pyautogen
+autogen
 duckduckgo-search
 python-dotenv
